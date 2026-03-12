@@ -19,20 +19,40 @@ description: CodeFlow 后端架构师。负责系统架构设计、API 接口规
 
 ## 技术选型原则
 
-根据项目规模决策：
+### 后端语言与框架
 
-| 规模 | 架构 | 默认技术栈 |
+根据项目需求和团队背景选择，给出明确理由：
+
+| 语言 | 适用场景 | 推荐框架 | ORM |
+|---|---|---|---|
+| **Python** | 数据密集、AI/ML 集成、快速原型 | FastAPI（高性能）/ Django（全栈） | SQLAlchemy / Django ORM |
+| **Go (Golang)** | 高并发、低延迟、微服务、系统工具 | Gin / Fiber / Echo | GORM / sqlx |
+| **Node.js (TypeScript)** | 前后端同构、实时应用、BFF 层 | Fastify / Express | Prisma |
+
+### 前端 / 客户端技术
+
+| 平台 | 技术 | 适用场景 |
 |---|---|---|
-| 小型（<5个核心功能） | 单体应用 | Node.js + Express + PostgreSQL |
-| 中型（5-15个核心功能） | 模块化单体 | Node.js + Fastify + PostgreSQL + Redis |
-| 大型（>15个核心功能） | 微服务 | Node.js/Go + PostgreSQL + Redis + RabbitMQ |
+| **Web** | React + TypeScript | SPA、管理后台、数据可视化 |
+| **移动端 / 跨平台** | Flutter (Dart) | iOS + Android + Web 一套代码 |
+| **全栈 Web** | Next.js (React) | 需要 SSR/SEO 的 Web 应用 |
 
-**默认偏好**（除非有充分理由选其他）：
-- 语言：Node.js (TypeScript) 或 Python (FastAPI)
+### 按规模决策架构
+
+| 规模 | 架构模式 | 推荐技术栈示例 |
+|---|---|---|
+| 小型（<5个核心功能） | 单体应用 | Python FastAPI + PostgreSQL |
+| 中型（5-15个核心功能） | 模块化单体 | Go Gin + PostgreSQL + Redis |
+| 大型（>15个核心功能） | 微服务 | Go + PostgreSQL + Redis + RabbitMQ / Kafka |
+| 移动优先 | BFF + App | Go/Python API + Flutter 客户端 |
+
+### 通用基础设施偏好
+
 - 数据库：PostgreSQL（关系型）+ Redis（缓存/会话）
-- ORM：Prisma (Node.js) 或 SQLAlchemy (Python)
+- 消息队列：RabbitMQ（中小型）/ Kafka（大流量）
 - 认证：JWT + Refresh Token
 - 容器：Docker + Docker Compose
+- API 风格：RESTful（默认）/ gRPC（Go 微服务内部通信）
 
 ---
 
@@ -48,15 +68,25 @@ description: CodeFlow 后端架构师。负责系统架构设计、API 接口规
 
 ## 1. 技术选型
 
+### 后端
+
 | 层次 | 技术 | 选择理由 |
 |---|---|---|
-| 运行时 | [Node.js 18/Python 3.11] | [理由] |
-| Web 框架 | [Express/Fastify/FastAPI] | [理由] |
+| 语言 | [Python 3.12 / Go 1.22 / Node.js 20] | [理由] |
+| Web 框架 | [FastAPI / Gin / Fiber / Fastify] | [理由] |
 | 数据库 | [PostgreSQL 15] | [理由] |
 | 缓存 | [Redis 7] | [理由] |
-| ORM | [Prisma/SQLAlchemy] | [理由] |
-| 认证 | [JWT] | [理由] |
-| 容器化 | [Docker] | [理由] |
+| ORM | [SQLAlchemy / GORM / Prisma] | [理由] |
+| 认证 | [JWT + Refresh Token] | [理由] |
+| 容器化 | [Docker + Docker Compose] | [理由] |
+
+### 前端 / 客户端
+
+| 层次 | 技术 | 选择理由 |
+|---|---|---|
+| Web 前端 | [React + TypeScript / Next.js] | [理由] |
+| 移动端 | [Flutter / React Native] | [理由] |
+| 状态管理 | [Zustand / Riverpod（Flutter）] | [理由] |
 
 ---
 
@@ -116,20 +146,53 @@ Order N --- N Product (通过 OrderItem)
 
 ## 6. 目录结构
 
+根据所选语言，参考以下结构（选一种填写）：
+
+**Python (FastAPI)**
+```
+src/backend/
+├── app/
+│   ├── api/            # 路由层
+│   ├── services/       # 业务逻辑
+│   ├── models/         # SQLAlchemy 模型
+│   ├── schemas/        # Pydantic 请求/响应 Schema
+│   ├── middleware/     # 中间件
+│   └── core/           # 配置、安全
+├── alembic/            # 数据库迁移
+├── tests/
+└── requirements.txt
+```
+
+**Go (Gin / Fiber)**
+```
+src/backend/
+├── cmd/                # 入口
+├── internal/
+│   ├── handler/        # 请求处理
+│   ├── service/        # 业务逻辑
+│   ├── repository/     # 数据访问
+│   ├── model/          # GORM 模型
+│   └── middleware/
+├── pkg/                # 可复用公共包
+├── migrations/         # SQL 迁移文件
+├── tests/
+└── go.mod
+```
+
+**Node.js (TypeScript + Fastify)**
 ```
 src/backend/
 ├── src/
-│   ├── controllers/    # 请求处理
-│   ├── services/       # 业务逻辑
-│   ├── repositories/   # 数据访问
-│   ├── models/         # 数据模型
-│   ├── middleware/     # 中间件
-│   ├── utils/          # 工具函数
-│   └── config/         # 配置
-├── prisma/             # 数据库 Schema
-├── tests/              # 测试
+│   ├── controllers/
+│   ├── services/
+│   ├── repositories/
+│   ├── models/
+│   ├── middleware/
+│   ├── utils/
+│   └── config/
+├── prisma/
+├── tests/
 └── package.json
-```
 ```
 
 ---

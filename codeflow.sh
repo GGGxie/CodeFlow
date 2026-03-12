@@ -14,9 +14,27 @@ warn()    { echo -e "${YELLOW}[!]${NC} $*"; }
 error()   { echo -e "${RED}[✗]${NC} $*" >&2; }
 title()   { echo -e "\n${BOLD}${CYAN}$*${NC}"; }
 
+# ─── 全局选项 ─────────────────────────────────────────────────────────────────
+YES_MODE=false
+
 # ─── 路径 ───────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="${SCRIPT_DIR}/templates"
+
+# ─── 交互式确认（支持 --yes 跳过）──────────────────────────────────────────
+confirm_prompt() {
+  local prompt="$1"
+  local default="${2:-N}"
+  if [[ "$YES_MODE" == true ]]; then
+    return 0
+  fi
+  read -rp "$prompt" answer
+  if [[ "$default" == "Y" ]]; then
+    [[ ! "$answer" =~ ^[Nn]$ ]]
+  else
+    [[ "$answer" =~ ^[Yy]$ ]]
+  fi
+}
 
 # ─── 帮助信息 ────────────────────────────────────────────────────────────────
 usage() {
@@ -30,6 +48,10 @@ usage() {
   echo "  update      更新 Agent 定义到最新版本"
   echo "  status      查看当前目录的 CodeFlow 安装状态"
   echo "  help        显示此帮助信息"
+  echo ""
+  echo "工作模式:"
+  echo "  fast-track  简单项目（≤5 核心功能），4 阶段快速交付"
+  echo "  standard    标准项目（>5 核心功能），完整 5+ 阶段流程"
   echo ""
   echo "示例:"
   echo "  codeflow new                      # 新建项目"
@@ -50,8 +72,7 @@ do_install() {
   # 检查是否已安装
   if [[ -d "${target_dir}/.cursor/agents" ]]; then
     warn "检测到已有 CodeFlow 配置"
-    read -rp "是否覆盖安装？(y/N): " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    if ! confirm_prompt "是否覆盖安装？(y/N): " "N"; then
       info "已取消安装"
       exit 0
     fi
@@ -83,6 +104,7 @@ do_install() {
     "frontend-architect"
     "backend-developer"
     "frontend-developer"
+    "fullstack-developer"
     "qa-engineer"
     "security-auditor"
     "devops-engineer"
@@ -131,8 +153,7 @@ cmd_new() {
   local project_dir="${parent_dir}/${project_name}"
   if [[ -d "$project_dir" ]]; then
     warn "目录已存在: ${project_dir}"
-    read -rp "是否继续在该目录初始化 CodeFlow？(y/N): " confirm
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    if ! confirm_prompt "是否继续在该目录初始化 CodeFlow？(y/N): " "N"; then
       info "已取消"
       exit 0
     fi
@@ -157,8 +178,7 @@ cmd_new() {
   echo -e "  项目路径: ${BOLD}${project_dir}${NC}"
   echo -e "  产品想法: ${idea}"
   echo ""
-  read -rp "确认创建？(Y/n): " confirm
-  if [[ "$confirm" =~ ^[Nn]$ ]]; then
+  if ! confirm_prompt "确认创建？(Y/n): " "Y"; then
     info "已取消"
     exit 0
   fi
@@ -167,7 +187,7 @@ cmd_new() {
   mkdir -p "$project_dir"
   do_install "$project_dir"
 
-  # 写入初始 project-state.md
+  # 写入初始 project-state.md（完整 phases 结构，与 engineering-manager 期望格式一致）
   local now
   now=$(date '+%Y-%m-%d %H:%M')
   cat > "${project_dir}/docs/project-state.md" << STATEOF
@@ -175,18 +195,64 @@ project_name: "${project_name}"
 current_phase: discovery
 idea: "${idea}"
 started_at: "${now}"
+mode: standard  # standard | fast-track
 retry_counts:
   discovery: 0
   architecture: 0
   implementation: 0
   quality: 0
   delivery: 0
+
+phases:
+  discovery:
+    status: pending
+    agents: []
+    quality_gate:
+      checked_at: ""
+      checks: []
+      verdict: pending
+      notes: ""
+  architecture:
+    status: pending
+    agents: []
+    quality_gate:
+      checked_at: ""
+      checks: []
+      verdict: pending
+      notes: ""
+  implementation:
+    status: pending
+    agents: []
+    quality_gate:
+      checked_at: ""
+      checks: []
+      verdict: pending
+      notes: ""
+  quality:
+    status: pending
+    agents: []
+    quality_gate:
+      checked_at: ""
+      checks: []
+      verdict: pending
+      notes: ""
+  delivery:
+    status: pending
+    agents: []
+    quality_gate:
+      checked_at: ""
+      checks: []
+      verdict: pending
+      notes: ""
+
 completed_artifacts: []
 pending_issues: []
 blocked_for_human: false
+
 timeline:
   - time: "${now}"
-    event: "项目创建，想法：${idea}"
+    event: "项目创建"
+    detail: "用户想法：${idea}"
 STATEOF
 
   success "项目状态文档已创建 (docs/project-state.md)"
@@ -222,8 +288,7 @@ GITEOF
   echo ""
 
   if command -v cursor &>/dev/null; then
-    read -rp "是否立即用 Cursor 打开项目？(Y/n): " open_cursor
-    if [[ ! "$open_cursor" =~ ^[Nn]$ ]]; then
+    if confirm_prompt "是否立即用 Cursor 打开项目？(Y/n): " "Y"; then
       cursor "$project_dir"
     fi
   else
@@ -336,6 +401,7 @@ cmd_status() {
     "frontend-architect:前端架构师"
     "backend-developer:后端开发"
     "frontend-developer:前端开发"
+    "fullstack-developer:全栈开发"
     "qa-engineer:测试工程师"
     "security-auditor:安全审计"
     "devops-engineer:DevOps"
@@ -371,15 +437,24 @@ cmd_status() {
 
 # ─── 入口 ────────────────────────────────────────────────────────────────────
 main() {
-  local cmd="${1:-help}"
-  shift || true
+  # 解析全局选项
+  local args=()
+  for arg in "$@"; do
+    case "$arg" in
+      --yes|-y) YES_MODE=true ;;
+      *) args+=("$arg") ;;
+    esac
+  done
+
+  local cmd="${args[0]:-help}"
+  local rest=("${args[@]:1}")
 
   case "$cmd" in
-    new)       cmd_new "$@" ;;
-    init)      cmd_init "$@" ;;
-    uninstall) cmd_uninstall "$@" ;;
-    update)    cmd_update "$@" ;;
-    status)    cmd_status "$@" ;;
+    new)       cmd_new "${rest[@]}" ;;
+    init)      cmd_init "${rest[@]}" ;;
+    uninstall) cmd_uninstall "${rest[@]}" ;;
+    update)    cmd_update "${rest[@]}" ;;
+    status)    cmd_status "${rest[@]}" ;;
     help|--help|-h) usage ;;
     *)
       error "未知命令: ${cmd}"

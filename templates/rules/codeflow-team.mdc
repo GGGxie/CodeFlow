@@ -9,56 +9,86 @@ alwaysApply: true
 
 | Agent | 职责 | 输出文档 |
 |---|---|---|
-| `engineering-manager` | 工程经理：有状态编排、质量门控、动态路由 | `docs/project-state.md` |
+| `engineering-manager` | 工程经理：有状态编排、复杂度评估、质量门控、动态路由 | `docs/project-state.md` |
 | `product-manager` | 产品经理：需求分析、PRD 编写、需求澄清 | `docs/prd.md` |
-| `ux-designer` | UX 设计师：页面结构、交互流程、组件规划 | `docs/design.md` |
+| `ux-designer` | UX 设计师：页面结构、交互流程、设计 Token（standard 模式） | `docs/design.md` |
 | `backend-architect` | 后端架构师：系统架构、API 合约、数据库设计 | `docs/architecture.md`, `docs/api-contract.yaml` |
 | `frontend-architect` | 前端架构师：前端技术选型、组件架构、状态管理 | `docs/frontend-arch.md` |
-| `backend-developer` | 后端开发：API 实现、业务逻辑、数据模型 | `src/backend/` |
-| `frontend-developer` | 前端开发：页面实现、组件开发、状态管理 | `src/frontend/` |
-| `qa-engineer` | 测试工程师：测试编写与执行、质量报告 | `docs/test-report.md` |
-| `security-auditor` | 安全审计：漏洞扫描、安全报告（分级） | `docs/security-report.md` |
-| `devops-engineer` | DevOps：Docker、CI/CD、部署配置 | `docs/deployment.md` |
-| `operations-analyst` | 运营分析：数据分析、用户反馈、迭代建议 | 反馈给工程经理 |
+| `backend-developer` | 后端开发：API 实现、业务逻辑、数据模型（前后端分离方案） | `src/backend/` |
+| `frontend-developer` | 前端开发：页面实现、组件开发、状态管理（前后端分离方案） | `src/frontend/` 或 `src/mobile/` |
+| `fullstack-developer` | 全栈开发：Next.js/Nuxt.js 全栈实现（全栈方案时替代前后端分开调用） | `src/frontend/` |
+| `qa-engineer` | 测试工程师：测试编写与执行、质量报告（standard 模式） | `docs/test-report.md` |
+| `security-auditor` | 安全审计：漏洞扫描、安全报告（standard 模式） | `docs/security-report.md` |
+| `devops-engineer` | DevOps：Docker、CI/CD、环境搭建、部署配置 | `docker-compose.yml`, `docs/deployment.md` |
+| `operations-analyst` | 运营分析：指标定义、监控方案、迭代建议（standard 模式） | `docs/operations-handbook.md` |
 
 ## 何时调用工程经理
 
 以下情况**必须**调用 `engineering-manager`：
 - 用户描述了新产品想法（以"我想做""我要做""帮我做""新建项目"等开头）
+- 用户要求追加功能（"加一个...""新增..."，项目已完成时进入迭代模式）
 - 任何 Agent 返回 `status: failed` 或 `status: blocked`
 - 需要推进到下一个阶段
 - 需要查询当前项目进展
 
-## 五个研发阶段
+## 三种工作模式
 
+### fast-track 模式（简单项目，≤5 核心功能）
 ```
-阶段1 发现（并行）: product-manager + ux-designer
+阶段1 发现+架构: product-manager → backend-architect + frontend-architect
+阶段2 环境搭建: devops-engineer（BaaS 可跳过）
+阶段3 实现: fullstack-developer（全栈方案）/ backend + frontend developer（分离方案）
+阶段4 验收交付: 工程经理验收
+```
+
+### standard 模式（标准项目，>5 核心功能）
+```
+阶段1 发现（顺序）: product-manager → ux-designer
 阶段2 架构（并行）: backend-architect + frontend-architect
-阶段3 实现（并行）: backend-developer + frontend-developer
+阶段2.5 环境搭建: devops-engineer（BaaS 可跳过）
+阶段3 实现: fullstack-developer / backend + frontend developer
+阶段3.5 设计走查: 工程经理验证
 阶段4 质量（并行）: qa-engineer + security-auditor
 阶段5 交付（顺序）: devops-engineer → operations-analyst
 ```
 
-## 文档路径规范
+### 迭代模式（项目已完成后追加功能）
+```
+Step 1: product-manager 更新 PRD
+Step 2: 按影响范围调用对应开发者实现
+Step 3: 工程经理验收 + 回归验证
+```
 
-所有文档统一写入当前项目的 `docs/` 目录：
+## 全栈项目判断
+
+工程经理在架构阶段完成后，读取 `docs/architecture.md` 判断：
+- 如果使用 Next.js App Router / Nuxt.js **且无独立后端服务** → 全栈项目，实现阶段调用 `fullstack-developer`
+- 否则 → 前后端分离，实现阶段分别调用 `backend-developer` + `frontend-developer`
+
+## 文档路径规范
 
 ```
 docs/
-├── project-state.md     # 工程经理维护，记录全程状态和决策日志
-├── prd.md               # 产品需求文档（product-manager 输出）
-├── design.md            # UI/UX 设计规范（ux-designer 输出）
-├── architecture.md      # 技术架构文档（backend-architect 输出）
-├── frontend-arch.md     # 前端架构文档（frontend-architect 输出）
-├── api-contract.yaml    # OpenAPI 3.0 接口合约（backend-architect 输出）
-├── test-report.md       # 测试报告（qa-engineer 输出）
-├── security-report.md   # 安全审计报告（security-auditor 输出）
-└── deployment.md        # 部署文档（devops-engineer 输出）
+├── project-state.md        # 项目状态（工程经理维护）
+├── prd.md                   # 产品需求文档
+├── design.md                # UI/UX 设计规范（standard 模式）
+├── architecture.md          # 技术架构文档
+├── frontend-arch.md         # 前端架构文档
+├── api-contract.yaml        # OpenAPI 3.0 接口合约
+├── test-report.md           # 测试报告（standard 模式）
+├── security-report.md       # 安全审计报告（standard 模式）
+├── deployment.md            # 部署文档
+└── operations-handbook.md   # 运营手册（standard 模式）
+
+src/
+├── backend/                 # 后端代码（前后端分离方案）
+├── frontend/                # Web 前端 / Next.js 全栈代码
+└── mobile/                  # 移动端代码（Flutter）
 ```
 
 ## 结构化返回格式
 
-每个角色 Agent 完成任务后，**必须**在回复末尾附上如下 JSON 结果块，供工程经理路由决策：
+每个角色 Agent 完成任务后，**必须**在回复末尾附上如下 JSON 结果块：
 
 ```json
 {
@@ -66,48 +96,20 @@ docs/
   "failure_type": "code_bug | requirement_ambiguity | architectural_issue | env_issue | design_issue",
   "route_back_to": "<agent-name>",
   "retry_count": 0,
-  "summary": "简要说明完成了什么或遇到了什么问题",
-  "issues": ["具体问题描述1", "具体问题描述2"],
-  "artifacts": ["docs/prd.md", "src/backend/api/users.ts"]
+  "summary": "一句话说明",
+  "issues": ["问题描述"],
+  "artifacts": ["docs/prd.md", "src/frontend/"]
 }
 ```
 
-- `status: passed` — 任务完成，等待工程经理推进
-- `status: failed` — 任务失败，需要路由给其他 Agent 处理
-- `status: blocked` — 任务阻塞，需要澄清信息才能继续
-- `failure_type` 仅在 `status` 为 `failed` 或 `blocked` 时填写
-
-## 路由决策规则（工程经理执行）
+## 路由决策规则
 
 | failure_type | 路由目标 |
 |---|---|
-| `code_bug` | `backend-developer` 或 `frontend-developer` |
+| `code_bug` | `fullstack-developer` / `backend-developer` / `frontend-developer` |
 | `requirement_ambiguity` | `product-manager` |
 | `architectural_issue` | `backend-architect` |
 | `env_issue` | `devops-engineer` |
 | `design_issue` | `ux-designer` |
 
-**重试上限**：每个阶段最多重试 3 次。超过上限时，工程经理暂停自动化并向用户报告，请求人工决策。
-
-## 项目状态文档结构
-
-`docs/project-state.md` 由工程经理全程维护，格式如下：
-
-```yaml
-project_name: ""
-current_phase: discovery   # discovery | architecture | implementation | quality | delivery | completed
-idea: ""
-started_at: ""
-retry_counts:
-  discovery: 0
-  architecture: 0
-  implementation: 0
-  quality: 0
-  delivery: 0
-completed_artifacts: []
-pending_issues: []
-blocked_for_human: false
-timeline:
-  - time: ""
-    event: ""
-```
+**重试上限**：每个阶段最多重试 3 次。超过上限时暂停并向用户报告。
